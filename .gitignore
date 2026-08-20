@@ -1,6 +1,7 @@
 __pycache__/
 .ipynb_checkpoints/
 .venv/
-.dataset.csv
-.Dockerfile
-
+dataset.csv
+Dockerfile
+y
+y.pub
