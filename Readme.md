@@ -1,193 +1,153 @@
-# Credit Risk Prediction
+# Credit Risk Prediction API
 
-Dataset: https://www.kaggle.com/datasets/laotse/credit-risk-dataset
+A machine learning web application that predicts the credit default risk of a loan applicant. The project combines a **FastAPI** backend serving an **XGBoost** classification model with a **Flask**-rendered HTML form for interactive predictions, and is containerized with **Docker**.
 
-An end-to-end Machine Learning application for predicting the credit default risk of borrowers. The application takes borrower and loan information as input, validates the data using Pydantic, prepares the required features, and uses a trained XGBoost model to predict default risk and probability of default.
+## Features
 
-The complete application is built with FastAPI and Flask, includes a Bootstrap-based web interface with JavaScript, and is containerized using Docker.
-
----
-
-## Project Overview
-
-Credit risk assessment is an important problem in lending and Buy Now Pay Later systems. The goal of this project is to identify borrowers who are more likely to default based on their financial and credit-related information.
-
-The application uses features such as age, annual income, home ownership, employment length, loan intent, loan grade, loan amount, interest rate, previous default history, and credit history length. The loan-to-income ratio is calculated automatically from annual income and loan amount.
-
-The model returns a binary prediction along with the estimated probability of default.
-
----
-
-## Machine Learning
-
-I evaluated Logistic Regression, Random Forest, and XGBoost models. XGBoost was selected and optimized using `RandomizedSearchCV`.
-
-| Metric    |  Score |
-| --------- | -----: |
-| Accuracy  | 93.77% |
-| Precision | 95.67% |
-| Recall    | 74.43% |
-| F1 Score  | 83.72% |
-| ROC-AUC   | 95.35% |
-
-The preprocessing pipeline includes median imputation, Yeo-Johnson transformation, scaling for numerical features, and One-Hot Encoding for categorical features.
-
-SHAP and feature importance analysis were also used to understand the model's predictions.
-
----
-
-## Application Architecture
-
-```text
-User
- │
- ▼
-Flask + Jinja2 Web Interface
- │
- ▼
-JavaScript
- │
- │ POST /predict
- ▼
-FastAPI
- │
- ▼
-Pydantic Validation
- │
- ▼
-Feature Preparation
- │
- ▼
-XGBoost ML Pipeline
- │
- ▼
-Prediction + Default Probability
- │
- ▼
-Web Interface
-```
-
----
+- REST API endpoint (`/predict`) that returns a default prediction and default probability for a loan applicant
+- Simple web UI (`/`) built with Bootstrap 5 for submitting applicant details and viewing results
+- Input validation via Pydantic, including an auto-computed `loan_percent_income` field
+- Trained `scikit-learn` Pipeline (with XGBoost classifier) serialized as a `.joblib` file
+- Dockerized for easy deployment
 
 ## Tech Stack
 
-**Machine Learning:** Python, Pandas, NumPy, Scikit-learn, XGBoost, SHAP
+| Layer | Technology |
+|---|---|
+| API | FastAPI |
+| Frontend | Flask (mounted as WSGI app) + Bootstrap 5 |
+| ML Model | XGBoost, scikit-learn Pipeline |
+| Data | pandas, NumPy |
+| Serialization | joblib |
+| Server | Uvicorn |
+| Containerization | Docker |
 
-**Backend:** FastAPI, Flask, Pydantic, Uvicorn, Jinja2
+## Dataset
 
-**Frontend:** HTML, CSS, Bootstrap, JavaScript
-
-**Deployment:** Docker
-
-**Model Serialization:** Joblib
-
----
+Model trained on the [Credit Risk Dataset](https://www.kaggle.com/datasets/laotse/credit-risk-dataset) from Kaggle, which contains applicant demographic, income, employment, and loan information along with the historical default outcome.
 
 ## Project Structure
 
-```text
-Credit-Risk-Prediction/
-│
+```
+credit-risk-prediction-api/
 ├── app/
-│   ├── main.py
-│   ├── schemas.py
+│   ├── main.py                          # FastAPI + Flask app, /predict endpoint
+│   ├── schemas.py                       # Pydantic input schema & validation
 │   └── templates/
-│       └── index.html
-│
-├── Credit_risk_prediction.joblib
-├── Credit Risk.ipynb
-├── dataset.csv
+│       └── index.html                   # Frontend prediction form
+├── Credit Risk.ipynb                    # Model training / EDA notebook
+├── Credit_risk_prediction.joblib        # Trained sklearn Pipeline (XGBoost)
 ├── Dockerfile
 ├── requirements.txt
-├── .gitignore
 └── README.md
 ```
 
----
+## API Reference
 
-## Run Locally
+### `GET /api`
+Health check.
 
-Clone the repository and install the dependencies:
-
-```bash
-git clone https://github.com/YOUR_USERNAME/credit-risk-prediction-api.git
-cd credit-risk-prediction-api
-
-python -m venv venv
-venv\Scripts\activate
-
-pip install -r requirements.txt
+**Response**
+```json
+{ "message": "Credit Risk Prediction API is running" }
 ```
 
-Start the application:
+### `POST /predict`
+Returns a credit risk prediction for a loan applicant.
 
-```bash
-uvicorn app.main:app --reload
+**Request body**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `person_age` | int | Yes | 18–100 |
+| `person_income` | float | Yes | > 0 |
+| `person_home_ownership` | string | Yes | `RENT`, `OWN`, `MORTGAGE`, `OTHER` |
+| `person_emp_length` | float | No | 0–60 years |
+| `loan_intent` | string | Yes | `PERSONAL`, `EDUCATION`, `MEDICAL`, `VENTURE`, `HOMEIMPROVEMENT`, `DEBTCONSOLIDATION` |
+| `loan_grade` | string | Yes | `A`–`G` |
+| `loan_amnt` | float | Yes | > 0 |
+| `loan_int_rate` | float | No | 0–100 |
+| `loan_percent_income` | float | Auto-computed | `loan_amnt / person_income` |
+| `cb_person_default_on_file` | string | Yes | `Y` or `N` |
+| `cb_person_cred_hist_length` | int | Yes | >= 0 |
+
+**Example request**
+```json
+{
+  "person_age": 28,
+  "person_income": 60000,
+  "person_home_ownership": "RENT",
+  "person_emp_length": 5,
+  "loan_intent": "EDUCATION",
+  "loan_grade": "B",
+  "loan_amnt": 10000,
+  "loan_int_rate": 11.5,
+  "cb_person_default_on_file": "N",
+  "cb_person_cred_hist_length": 4
+}
 ```
 
-Open `http://localhost:8000` in your browser.
-
----
-
-## Run with Docker
-
-Build the Docker image:
-
-```bash
-docker build -t credit-risk-predition-api .
-```
-
-Run the container:
-
-```bash
-docker run -p 8000:8000 credit-risk-predition-api
-```
-
-Open the application at `http://localhost:8000`.
-
-FastAPI's interactive API documentation is available at `http://localhost:8000/docs`.
-
----
-
-## API
-
-### POST `/predict`
-
-The prediction endpoint accepts borrower and loan information and returns the predicted class and default probability.
-
-Example response:
-
+**Example response**
 ```json
 {
   "prediction": 0,
   "result": "Non-Defaulter",
-  "default_probability": 0.1258
+  "default_probability": 0.0812
 }
 ```
 
----
+## Getting Started
 
-## Key Features
+### Prerequisites
+- Python 3.11+
+- pip
+- (Optional) Docker
 
-* End-to-end credit risk prediction
-* XGBoost model with hyperparameter tuning
-* Automated loan-to-income ratio calculation
-* Pydantic input validation
-* SHAP-based model explainability
-* FastAPI prediction API
-* Flask + Jinja2 web interface
-* Bootstrap and JavaScript frontend
-* Dockerized deployment
-* Interactive API documentation
+### Local Setup
 
----
+```bash
+git clone https://github.com/Raj-Raaz/credit-risk-prediction-api.git
+cd credit-risk-prediction-api
 
-## Disclaimer
+python -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
 
-This project is developed for educational and portfolio purposes. The predictions should not be used as real-world financial or lending decisions without proper validation, fairness testing, regulatory compliance, and continuous model monitoring.
+pip install -r requirements.txt
 
----
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The app will be available at:
+- Web UI: `http://localhost:8000/`
+- API docs (Swagger): `http://localhost:8000/docs`
+
+### Run with Docker
+
+```bash
+# Build the image
+docker build -t raj2903/credit-risk-prediction-api:latest .
+
+# Run the container
+docker run -d -p 8000:8000 --name credit-risk-app raj2903/credit-risk-prediction-api:latest
+```
+
+Then visit `http://localhost:8000/`.
+
+### Pull from Docker Hub
+
+```bash
+docker pull raj2903/credit-risk-prediction-api:latest
+docker run -d -p 8000:8000 raj2903/credit-risk-prediction-api:latest
+```
+
+## Model
+
+The model is a `scikit-learn` `Pipeline` wrapping preprocessing steps and an XGBoost classifier, trained on the Kaggle Credit Risk dataset and serialized with `joblib` as `Credit_risk_prediction.joblib`. See `Credit Risk.ipynb` for the full training and evaluation workflow.
+
+## License
+
+This project is available for educational and portfolio purposes. Add a license of your choice (e.g., MIT) if you intend to distribute it.
 
 ## Author
 
-**Raj** — Data Science | Machine Learning | AI
+**Raj** — [GitHub](https://github.com/Raj-Raaz) · [LinkedIn](https://www.linkedin.com/in/iitmraj)
